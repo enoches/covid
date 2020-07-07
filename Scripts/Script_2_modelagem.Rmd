@@ -1,0 +1,291 @@
+---
+title: "Visualizacao Averting Expenditures Covid"
+author: "Claudiano Neto"
+# date: '`r format(Sys.Date())`'
+geometry: margin = 1cm
+output:
+  html_document:
+    theme: flatly
+    highlight: tango
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE, warning=FALSE}
+library(scales)
+library(tidyverse)
+library(magrittr)
+library(utf8)
+```
+
+```{r}
+library(haven)
+
+covid_basedados_imputado <- read_dta("C:/Users/User/Dropbox/Averting Expenditures Paper/rmd/dados_dta/covid_basedados_imputado.dta")
+
+# Deixando a base sem NA's
+base_cov <- na.omit(covid_basedados_imputado)
+```
+
+
+# Regressao PROBIT com base de dados imputado - base_imp
+```{r, message=FALSE, warning=FALSE}
+library(foreign)
+library(stargazer)
+
+# Estou realizando as Regressoes com banco de dados imputado
+# Estou testando diferentes conjunto de variaveis para o modelo.
+
+
+# y = (equip_defensiv) = Comprou ou nao comprou equipamentos defensivo
+
+teste1 <- glm(equip_defensiv ~ d_escolaridade + sexo + estcivil + morte_cov + contat_cov +  filho_dep + idade + raca + renda, data = base_cov, family = binomial(link = "probit"))
+
+teste2 <- glm(equip_defensiv ~ d_escolaridade + sexo + estcivil + morte_cov + contat_cov + qtd_filho_dep + filho_dep + idade +  raca, data = base_cov, family = binomial(link = "probit"))
+
+teste3 <- glm(equip_defensiv ~ d_escolaridade + sexo + estcivil + morte_cov + contat_cov + qtd_filho_dep + filho_dep + idade, data = base_cov, family = binomial(link = "probit"))
+
+teste4 <- glm(equip_defensiv ~ d_escolaridade + sexo + estcivil + morte_cov + contat_cov + qtd_filho_dep + filho_dep + idade, data = base_cov, family = binomial(link = "probit"))
+
+teste5 <- glm(equip_defensiv ~ d_escolaridade + sexo + estcivil + morte_cov + contat_cov + qtd_filho_dep + filho_dep, data = base_cov, family = binomial(link = "probit"))
+
+teste6 <- glm(equip_defensiv ~ d_escolaridade + sexo + estcivil + morte_cov + contat_cov + filho_dep, data = base_cov, family = binomial(link = "probit"))
+
+teste7 <- glm(equip_defensiv ~ d_escolaridade + sexo + estcivil + morte_cov + contat_cov, data = base_cov, family = binomial(link = "probit")) 
+
+stargazer(teste1, teste2, teste3, teste4, teste5, teste6, teste7, type = 'text')
+```
+
+Regressao MQO com base de dados imputado - base_cov
+No MQO não podemos rodar a variavel equip_defensiv como Y.
+
+
+# Testando modelos 
+```{r}
+library(stargazer)
+
+reg_gd <- lm(gasto_equip_defensivo ~  + sexo + estcivil + morte_cov + contat_cov + filho_dep + idade + deaths + confirmed + d_raca + renda + d_escolaridade, data = base_cov)
+
+reg_ed_prob <- glm(equip_defensiv ~ sexo + estcivil + morte_cov + contat_cov + filho_dep + idade + deaths + confirmed + d_raca + renda + d_escolaridade, data = base_cov, family = binomial(link = "probit"))
+
+
+reg_ed_logit <- glm(equip_defensiv ~ sexo + estcivil + morte_cov + contat_cov + filho_dep + idade + deaths + confirmed + d_raca + renda + d_escolaridade, data = base_cov, family = binomial(link = "logit"))
+
+reg_ed_logit_sr <- glm(equip_defensiv ~ sexo + estcivil + morte_cov + contat_cov + filho_dep + idade + deaths + confirmed, data = base_cov, family = binomial(link = "logit"))
+
+stargazer(reg_gd, reg_ed_prob, reg_ed_logit, reg_ed_logit_sr, type = 'text')
+
+# Depois de analisar os dados acima, optei por escolher o modelo "reg_ed_prob"
+
+```
+
+
+# Calculando os Efeitos marginais do PROBIT
+
+```{r}
+# https://github.com/leeper/margins
+
+library("margins")
+library("datasets")
+library("stargazer")
+
+reg_ed_prob <- glm(equip_defensiv ~ sexo + estcivil + morte_cov + contat_cov + filho_dep + idade + deaths + confirmed + d_raca + renda + d_escolaridade, data = base_cov, family = binomial(link = "probit"))
+
+reg_ed_prob_2 <- glm(equip_defensiv ~ sexo + estcivil + morte_cov + contat_cov + filho_dep + idade + deaths + confirmed + renda + d_escolaridade, data = base_cov, family = binomial(link = "probit"))
+
+reg_ed_prob_3 <- glm(equip_defensiv ~ sexo + estcivil + morte_cov + contat_cov + filho_dep + idade + deaths + confirmed + d_escolaridade, data = base_cov, family = binomial(link = "probit"))
+
+reg_ed_prob_4 <- glm(equip_defensiv ~ sexo + estcivil + morte_cov + contat_cov + filho_dep + deaths + confirmed + d_escolaridade, data = base_cov, family = binomial(link = "probit"))
+
+reg_ed_prob_5 <- glm(equip_defensiv ~ sexo + estcivil + morte_cov + contat_cov + idade + deaths + confirmed + d_escolaridade, data = base_cov, family = binomial(link = "probit"))
+
+
+# Esse modelo ficou bastante interessante. Melhor discutir com cadu e Roberta
+reg_ed_prob_6 <- glm(equip_defensiv ~ sexo + estcivil + morte_cov + contat_cov + deaths + confirmed + d_escolaridade, data = base_cov, family = binomial(link = "probit"))
+
+stargazer(reg_ed_prob, reg_ed_prob_2, reg_ed_prob_3, reg_ed_prob_4, reg_ed_prob_5, reg_ed_prob_6, type = 'text')
+
+
+summary(reg_ed_prob_6)
+
+plot(margins(reg_ed_prob))
+
+summary(margins(reg_ed_prob))
+stargazer(reg_ed_prob, type = 'text')
+```
+
+```{r}
+cplot(reg_ed_prob, x = "contat_cov", se.type = "shade")
+```
+
+```{r}
+# Calculando intervalo de confianca
+confint(reg_ed_prob)
+```
+
+```{r}
+library(aod)
+wald.test(b = coef(reg_ed_prob), Sigma = vcov(reg_ed_prob), Terms = 7:11)
+wald.test(b = coef(reg_ed_prob_6), Sigma = vcov(reg_ed_prob_6), Terms = 4:7)
+
+reg_ed_prob_6 <- glm(equip_defensiv ~ sexo + estcivil + morte_cov + contat_cov + deaths + confirmed + d_escolaridade, data = base_cov, family = binomial(link = "probit"))
+
+# testei 6:8 sao os termos do modelo que foram testados
+# idade, deaths, confirmed
+```
+
+
+```{r}
+# McFadden's Pseudo R-squared
+reg_ed_prob0 <- update(reg_ed_prob_6, formula= equip_defensiv ~ 1)   # Calcula o LL mantendo Y constante.
+McFadden<- 1-as.vector(logLik(reg_ed_prob_6)/logLik(reg_ed_prob0))
+McFadden
+
+# resultado de 0.12 está fora do intervalo sugerido por Louviere, e abaixo do obtido com a base_imp.
+
+# o valor de 0.22 está dentro do range de 0.20 - 0.40 sugerido por Louviere et al (2000). "Stated Choice Methods: Analysis and Applications". Cambridge University Press., pagina 55.
+
+# A explicacao para essa parte vem: https://portal.uni-freiburg.de/empiwifo/teaching/summer-term-09/materials-microeconometrics/probit_7-5-09.pdf 
+```
+
+A respeito do McFadden: Ele compara a probabilidade de log irrestrita Lur para o modelo que estamos estimando e a probabilidade de log restrita Lr com apenas uma interceptação. Se as variáveis independentes não tiverem poder explicativo, o modelo restrito será o mesmo que o modelo irrestrito e R ao quadrado será 0.
+Para ver mais detalhes sobre teste de hipoteses, ver: https://www.empiwifo.uni-freiburg.de/teaching/summer-term-09/materials-microeconometrics/probit_7-5-09.pdf .
+Para encontrar a diferença de desvio para os dois modelos (ou seja, a estat�?stica do teste), podemos calcular a alteração no desvio e testá-la usando um teste do qui quadrado - a mudança no desvio distribu�?da como qui quadrado na mudança nos graus de liberdade.
+Diggle, P.J., Liang, K.-Y., Zeger, S.L., 1994. Analysis of longitudinal data. Oxford, Clarendon Press, 253 p. Draper, N.R., Smith, H., 1998. Applied Regression Analysis. New York, John Wiley & Sons, Inc., 706 p.
+
+```{r}
+library(rsq)
+
+reg_ed_prob <- glm(equip_defensiv ~ sexo + estcivil + morte_cov + contat_cov + filho_dep + idade + deaths + confirmed + d_raca + renda + d_escolaridade, data = base_cov, family = binomial(link = "probit"))
+summary(reg_ed_prob)
+
+rsq(reg_ed_prob, adj = FALSE, type = 'lr')
+rsq(reg_ed_prob,adj=TRUE)
+```
+
+```{r}
+## change in deviance
+with(reg_ed_prob, null.deviance - deviance)
+```
+
+```{r}
+## change in degrees of freedom
+with(reg_ed_prob, df.null - df.residual)
+```
+
+```{r}
+## chi square test p-value
+with(reg_ed_prob, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE))
+```
+
+```{r}
+logLik(reg_ed_prob)
+```
+
+O qui-quadrado de 234.8032 com 11 graus de liberdade e um valor p associado < 0,001 nos diz que nosso modelo como um todo se encaixa significativamente melhor que um modelo vazio. As vezes, isso é chamado de teste da razão de verossimilhança (o desvio residual é -2 * log verossimilhança). A probabilidade de log do modelo foi -791.4241.
+
+# CUrva de ROC
+```{r}
+library("ROCR")
+
+m1 <- glm(equip_defensiv ~ sexo + estcivil + morte_cov + contat_cov + filho_dep + idade + deaths + confirmed + d_raca + renda + d_escolaridade, control = glm.control(maxit=100, trace=FALSE), data = base_cov, family = binomial(link = "probit"))
+# 
+# class(base_cov$equip_defensiv)
+# class(base_cov$sexo)
+# class(base_cov$estcivil)
+# class(base_cov$morte_cov)
+# class(base_cov$contat_cov)
+# class(base_cov$filho_dep)
+# class(base_cov$idade)
+# class(base_cov$deaths)
+# class(base_cov$confirmed)
+# class(base_cov$d_raca)
+# class(base_cov$renda)
+# class(base_cov$d_escolaridade)
+# 
+# 
+summary(m1)
+# 
+m1preds <- predict(m1, type= "response")
+class(m1preds)
+str(m1preds)
+m1.predict <- prediction(m1preds, base_cov$equip_defensiv)
+
+# 
+# ## Obtain AUC
+# m1.auc <- performance(m1.predict, "auc")
+# ## AUC value:  area sobre a curva
+# m1.auc@y.values
+# ## Plot ROC curve
+# m1.roc <- performance(m1.predict, "tpr", "fpr")
+# plot(m1.roc)
+```
+
+Segundo Hosmer and Lemeshow (2000), Hosmer and Lemeshow (2000) provide rules of thumb for using AUC to judge
+the ability of a model to discriminate between cases for which y = 0 and y = 1. They suggest that .7 ≤ AUC < .8 implies acceptable discrimination between levels of y, .8 ≤ AUC < .9 implies excellent discrimination, and .9 ≤ AUC implies outstanding discrimination.
+
+
+```{r}
+# Multiple linear regression
+# 
+# summary(reg_ed_prob)
+# confint(reg_ed_prob, level=0.95)   # intervalo de confianca
+# anova(reg_ed_prob)    # teste anova
+# ```
+# 
+# 
+# ```{r}
+# # Plotting regression line
+# plot(log(gasto_equip_defensivo) ~ d_escolaridade + sexo + estcivil + morte_cov + contat_cov + filho_dep + idade + d_raca + renda, data = base_cov)
+```
+
+```{r}
+# Plotando valores marginais
+
+#https://cran.r-project.org/web/packages/sjPlot/vignettes/plot_marginal_effects.html
+
+# library(sjPlot)
+# library(ggeffects)
+# library(ggplot2)
+# theme_set(theme_sjplot())
+# 
+# plot_model(reg_ed_prob, type = "pred", terms = "idade")
+# plot_model(reg_ed_prob, type = "pred", terms = "renda")
+# plot_model(reg_ed_prob, type = "pred", terms = "filho_dep")
+```
+
+
+
+```{r, message=FALSE, warning=FALSE}
+# confint(teste7)
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+#   https://stats.idre.ucla.edu/r/dae/probit-regression/
+#   https://stats.idre.ucla.edu/stat/data/intro_r/intro_r_interactive.html#(61)
+# require(aod)
+# wald.test(b = coef(teste7), Sigma = vcov(teste7), Terms = 4:6)
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+#depois de montar a equação final 
+#acessar https://jbhender.github.io/Stats506/F18/GP/Group14.html 
+# para ver como fazer graficos interessantes
+
+# https://stats.idre.ucla.edu/r/dae/ordinal-logistic-regression/
+
+```
+
+# Pesquisar novamente o site https://www.statmethods.net/stats/regression.html
+
+Procurar HECKMAN
+
+
+
+/

@@ -1,0 +1,52 @@
+---
+title: "Visualizando dados"
+author: "Claudiano Neto"
+# date: '`r format(Sys.Date())`'
+geometry: margin = 1cm
+output:
+  html_document:
+    theme: flatly
+    highlight: tango
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE, warning=FALSE}
+library(scales)
+library(tidyverse)
+library(magrittr)
+library(utf8)
+```
+
+```{r}
+library(haven)
+
+covid_basedados_imputado <- read_dta("C:/Users/User/Dropbox/Averting Expenditures Paper/rmd/dados_dta/covid_basedados_imputado.dta")
+
+# Deixando a base sem NA's
+base_cov <- na.omit(covid_basedados_imputado)
+
+attach(base_cov)
+```
+
+
+```{r}
+library(metan)
+find_outliers(base_cov, var = idade, plots = TRUE)
+find_outliers(base_cov, var = renda, plots = TRUE)
+find_outliers(base_cov, var = gasto_equip_defensivo, plots = TRUE)
+find_outliers(base_cov, var = confirmed_per_100k_inhabitants, plots = TRUE)
+```
+
+
+```{r}
+library(ggplot2)
+
+
+sum(is.na(base_cov))
+
+```
