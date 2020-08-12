@@ -1,7 +1,7 @@
 ---
 title: "Visualizacao Averting Expenditures Covid"
 author: "Claudiano Neto"
-# date: '`r format(Sys.Date())`'
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 geometry: margin = 1cm
 output:
   html_document:
@@ -20,45 +20,59 @@ library(scales)
 library(tidyverse)
 library(magrittr)
 library(utf8)
+library(foreign)
+library(haven)
+library(stargazer)
+library(margins)
+library(datasets)
 ```
 
 ```{r}
-library(haven)
+covid_basedados_imputado <- read_dta("C:/Users/User/Documents/covid/dados_dta/covid_basedados_imputado.dta")
 
-covid_basedados_imputado <- read_dta("C:/Users/User/Dropbox/Averting Expenditures Paper/rmd/dados_dta/covid_basedados_imputado.dta")
-
-# Deixando a base sem NA's
-base_cov <- na.omit(covid_basedados_imputado)
+base_cov <- covid_basedados_imputado
 ```
 
-reg_gd
-reg_ed_prob_6
 
+```{r}
+#Transformando variaveis "confirmed", "deaths" e "gasto_equip_defensivo" em log.
 
+base_cov$confirmed = as.numeric(base_cov$confirmed)
+base_cov$confirmed = ifelse(base_cov$confirmed == 0 | is.na(base_cov$confirmed), base_cov$confirmed, log(base_cov$confirmed))
+
+base_cov$deaths = as.numeric(base_cov$deaths)
+base_cov$deaths = ifelse(base_cov$deaths == 0 | is.na(base_cov$deaths), base_cov$deaths, log(base_cov$deaths))
+
+base_cov$gasto_equip_defensivo = as.numeric(base_cov$gasto_equip_defensivo)
+base_cov$gasto_equip_defensivo = ifelse(base_cov$gasto_equip_defensivo == 0 | is.na(base_cov$gasto_equip_defensivo), base_cov$gasto_equip_defensivo, log(base_cov$gasto_equip_defensivo))
+```
+
+```{r}
+# dados <- base_cov_full %>% 
+      # filter(gasto_equip_defensivo > 0) 
+
+# lm(gasto_equip_defensivo ~  sexo + estcivil + morte_cov + contat_cov + filho_dep + idade + deaths + confirmed + d_raca + renda + d_escolaridade, data = dados)
+
+# ols_dados <- lm(gasto_equip_defensivo ~  confirmed, data = dados)
+
+# summary(ols_dados)
+```
 
 
 # Testando modelos 
 ```{r}
-library(stargazer)
 
-
-ols_gd <- lm(gasto_equip_defensivo ~  + sexo + estcivil + morte_cov + contat_cov + filho_dep + idade + deaths + confirmed + d_raca + renda + d_escolaridade, data = base_cov)
+ols_gd <- lm(gasto_equip_defensivo ~  sexo + estcivil + morte_cov + contat_cov + filho_dep + idade + deaths + confirmed + d_raca + renda + d_escolaridade, data = base_cov)
 
 summary(ols_gd)
-
 # Depois de analisar os dados acima, optei por escolher o modelo "reg_ed_prob"
 
 ```
-
 
 # Calculando os Efeitos marginais do PROBIT
 
 ```{r}
 # https://github.com/leeper/margins
-
-library("margins")
-library("datasets")
-library("stargazer")
 
 probit_1 <- glm(equip_defensiv ~ sexo + estcivil + morte_cov + contat_cov + filho_dep + idade + deaths + confirmed + d_raca + renda + d_escolaridade, data = base_cov, family = binomial(link = "probit"))
 
@@ -74,17 +88,18 @@ probit_5 <- glm(equip_defensiv ~ sexo + estcivil + morte_cov + contat_cov + idad
 probit_6 <- glm(equip_defensiv ~ sexo + estcivil + morte_cov + contat_cov + deaths + confirmed + d_escolaridade, data = base_cov, family = binomial(link = "probit"))
 
 stargazer(probit_1, probit_2, probit_3, probit_4, probit_5, probit_6, type = 'text')
-
 # considerando os modelos GLM, escolho o modelo probit_6
 
+```
+
+```{r}
+stargazer(ols_gd, probit_6, type = 'text')
 ```
 
 ```{r}
 # valores marginais 
 
 # https://github.com/leeper/margins
-
-library("margins")
 
 #Modelo OlS
 summary(ols_gd)
@@ -132,31 +147,37 @@ McFadden_ols
 # A explicacao para essa parte vem: https://portal.uni-freiburg.de/empiwifo/teaching/summer-term-09/materials-microeconometrics/probit_7-5-09.pdf 
 ```
 
-A respeito do McFadden: Ele compara a probabilidade de log irrestrita Lur para o modelo que estamos estimando e a probabilidade de log restrita Lr com apenas uma interceptação. Se as variáveis independentes não tiverem poder explicativo, o modelo restrito será o mesmo que o modelo irrestrito e R ao quadrado será 0.
-Para ver mais detalhes sobre teste de hipoteses, ver: https://www.empiwifo.uni-freiburg.de/teaching/summer-term-09/materials-microeconometrics/probit_7-5-09.pdf .
-Para encontrar a diferença de desvio para os dois modelos (ou seja, a estat�?stica do teste), podemos calcular a alteração no desvio e testá-la usando um teste do qui quadrado - a mudança no desvio distribu�?da como qui quadrado na mudança nos graus de liberdade.
-Diggle, P.J., Liang, K.-Y., Zeger, S.L., 1994. Analysis of longitudinal data. Oxford, Clarendon Press, 253 p. Draper, N.R., Smith, H., 1998. Applied Regression Analysis. New York, John Wiley & Sons, Inc., 706 p.
+```{r}
+# A respeito do McFadden: Ele compara a probabilidade de log irrestrita Lur para o modelo que estamos estimando e a probabilidade de log restrita Lr com apenas uma interceptação. Se as variáveis independentes não tiverem poder explicativo, o modelo restrito será o mesmo que o modelo irrestrito e R ao quadrado será 0.
+# Para ver mais detalhes sobre teste de hipoteses, ver: https://www.empiwifo.uni-freiburg.de/teaching/summer-term-09/materials-microeconometrics/probit_7-5-09.pdf .
+# Para encontrar a diferença de desvio para os dois modelos (ou seja, a estat�?stica do teste), podemos calcular a alteração no desvio e testá-la usando um teste do qui quadrado - a mudança no desvio distribu�?da como qui quadrado na mudança nos graus de liberdade.
+# Diggle, P.J., Liang, K.-Y., Zeger, S.L., 1994. Analysis of longitudinal data. Oxford, Clarendon Press, 253 p. Draper, N.R., Smith, H., 1998. Applied Regression Analysis. New York, John Wiley & Sons, Inc., 706 p.
+```
+
 
 ```{r}
 library(rsq)
 
 # likelihood-ratio-based R^2
-rsq(probit_6, adj = TRUE, type = 'lr')
+rsq(probit_6, adj = FALSE, type = 'lr')
+rsq(probit_6, adj=TRUE)
+
 
 #Calculate the likelihood-ratio-based R^2 for generalized linear models.
+rsq(ols_gd, adj = FALSE, type = 'lr')
 rsq.lr(ols_gd, adj = TRUE)
 ```
 
 ```{r}
 
 ## change in deviance
-with(ols_gd, null.deviance - deviance)
-## change in degrees of freedom
-with(ols_gd, df.null - df.residual)
-## chi square test p-value
-with(ols_gd, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE))
-# Razao de verossimilhanca
-logLik(ols_gd)
+# with(ols_gd, null.deviance - deviance)
+# ## change in degrees of freedom
+# with(ols_gd, df.null - df.residual)
+# ## chi square test p-value
+# with(ols_gd, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE))
+# # Razao de verossimilhanca
+# logLik(ols_gd)
 
 
 ## change in deviance
@@ -169,7 +190,9 @@ with(probit_6, pchisq(null.deviance - deviance, df.null - df.residual, lower.tai
 logLik(probit_6)
 ```
 
-O qui-quadrado de 234.8032 com 11 graus de liberdade e um valor p associado < 0,001 nos diz que nosso modelo como um todo se encaixa significativamente melhor que um modelo vazio. As vezes, isso é chamado de teste da razão de verossimilhança (o desvio residual é -2 * log verossimilhança). A probabilidade de log do modelo foi -791.4241.
+```{r}
+# O qui-quadrado de 234.8032 com 11 graus de liberdade e um valor p associado < 0,001 nos diz que nosso modelo como um todo se encaixa significativamente melhor que um modelo vazio. As vezes, isso é chamado de teste da razão de verossimilhança (o desvio residual é -2 * log verossimilhança). A probabilidade de log do modelo foi -791.4241.
+```
 
 
 ```{r}
@@ -178,12 +201,11 @@ O qui-quadrado de 234.8032 com 11 graus de liberdade e um valor p associado < 0,
 # summary(reg_ed_prob)
 # confint(reg_ed_prob, level=0.95)   # intervalo de confianca
 # anova(reg_ed_prob)    # teste anova
-# ```
-# 
-# 
-# ```{r}
+```
+
+```{r}
 # # Plotting regression line
-# plot(log(gasto_equip_defensivo) ~ d_escolaridade + sexo + estcivil + morte_cov + contat_cov + filho_dep + idade + d_raca + renda, data = base_cov)
+ plot(log(gasto_equip_defensivo) ~ d_escolaridade + sexo + estcivil + morte_cov + contat_cov + filho_dep + idade + d_raca + renda, data = base_cov)
 ```
 
 ```{r}
@@ -201,12 +223,9 @@ O qui-quadrado de 234.8032 com 11 graus de liberdade e um valor p associado < 0,
 # plot_model(reg_ed_prob, type = "pred", terms = "filho_dep")
 ```
 
-
-
 ```{r, message=FALSE, warning=FALSE}
 # confint(teste7)
 ```
-
 
 ```{r, message=FALSE, warning=FALSE}
 #   https://stats.idre.ucla.edu/r/dae/probit-regression/
@@ -214,7 +233,6 @@ O qui-quadrado de 234.8032 com 11 graus de liberdade e um valor p associado < 0,
 # require(aod)
 # wald.test(b = coef(teste7), Sigma = vcov(teste7), Terms = 4:6)
 ```
-
 
 ```{r, message=FALSE, warning=FALSE}
 #depois de montar a equação final 
@@ -225,10 +243,84 @@ O qui-quadrado de 234.8032 com 11 graus de liberdade e um valor p associado < 0,
 
 ```
 
+```{r}
 # Pesquisar novamente o site https://www.statmethods.net/stats/regression.html
+```
 
-Procurar HECKMAN
+# Analisando Heckman
+```{r}
+library(sampleSelection)
+
+base_cov$letal <- base_cov$deaths/base_cov$confirmed
+
+heck_cov1 = heckit(
+  selection = equip_defensiv ~ sexo + morte_cov + estcivil,
+  outcome = gasto_equip_defensivo ~ sexo + morte_cov + contat_cov + filho_dep + idade + d_raca + renda + d_escolaridade,
+  data = base_cov,
+  method = "2step"
+)
+summary(heck_cov1)
+
+heck_cov2 = heckit(
+  selection = equip_defensiv ~ sexo + letal + estcivil,
+  outcome = gasto_equip_defensivo ~ sexo + letal + contat_cov + filho_dep + idade + d_raca + renda + d_escolaridade,
+  data = base_cov,
+  method = "2step"
+)
+summary(heck_cov2)
+
+heck_cov3 = heckit(
+  selection = equip_defensiv ~ sexo + morte_cov + estcivil,
+  outcome = gasto_equip_defensivo ~ sexo + letal + contat_cov + filho_dep + idade + d_raca + renda + d_escolaridade,
+  data = base_cov,
+  method = "2step"
+)
+summary(heck_cov3)
+
+
+heck_cov4 = heckit(
+  selection = equip_defensiv ~ sexo + morte_cov + estcivil,
+  outcome = gasto_equip_defensivo ~ sexo + letal + filho_dep + idade + d_raca + renda + d_escolaridade,
+  data = base_cov,
+  method = "2step"
+)
+summary(heck_cov4)
+
+heck_cov5 = heckit(
+  selection = equip_defensiv ~ sexo + d_raca + estcivil + d_escolaridade,
+  outcome = gasto_equip_defensivo ~ sexo + deaths + contat_cov + filho_dep + idade,
+  data = base_cov,
+  method = "2step"
+)
+summary(heck_cov5)
+
+# O modelo 6 parece ter melhores resultados
+heck_cov6 = heckit(
+  selection = equip_defensiv ~ sexo + morte_cov + estcivil,
+  outcome = gasto_equip_defensivo ~ sexo + deaths + contat_cov + filho_dep + idade + d_raca + renda + d_escolaridade,
+  data = base_cov,
+  method = "2step"
+)
+summary(heck_cov6)
+```
+
+
+```{r}
+summary(lm(gasto_equip_defensivo ~ deaths, data =  base_cov))
+summary(lm(gasto_equip_defensivo ~ confirmed, data =  base_cov))
+summary(lm(gasto_equip_defensivo ~ sexo, data =  base_cov)) # NAO SIG
+summary(lm(gasto_equip_defensivo ~ morte_cov, data =  base_cov)) 
+summary(lm(gasto_equip_defensivo ~ contat_cov, data =  base_cov)) 
+summary(lm(gasto_equip_defensivo ~ filho_dep, data =  base_cov))
+summary(lm(gasto_equip_defensivo ~ letal, data =  base_cov))
+summary(lm(gasto_equip_defensivo ~ renda, data =  base_cov))
+summary(lm(gasto_equip_defensivo ~ d_escolaridade, data =  base_cov))
+summary(lm(gasto_equip_defensivo ~ idade, data =  base_cov))
+summary(lm(gasto_equip_defensivo ~ d_raca, data =  base_cov))
+summary(lm(gasto_equip_defensivo ~ estcivil, data =  base_cov))
+```
 
 
 
-/
+
+

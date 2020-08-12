@@ -8,6 +8,7 @@ library(readxl)
 library(mice)
 library(VIM)
 library(lattice)
+library(foreign)
 
 
 # Carregando dados do arquivo csv (diretamente do pc) referente as estatisiticas de covid-19
@@ -21,8 +22,8 @@ brasil.io$date %<>% as.Date()
 
 # Puxando base de Dados dos questionarios de arquivo excel diretamente do pc
 
-
-gastoscovid <- ==read_excel("gastoscovid_v1206.xlsx", sheet = "respostas")
+gastoscovid <- read_excel("C:/Users/User/Dropbox/Averting Expenditures Paper/rmd/Dadosbrutos/gastoscovid_v1206.xlsx", 
+                          sheet = "respostas")
 
 # convertendo a coluna data para formato Date e grafia desejada.
 gastoscovid$data %<>% as.Date()
@@ -81,18 +82,18 @@ baseampla$sexo = ifelse(baseampla$sexo == "Masculino", 1, 0)
 
 # Dummy para etnia(1=Brancos, 0=nao brancos)
 #baseampla$raca = ifelse(baseampla$raca == "Branco", 1, 0)
-baseampla$d.raca[baseampla$raca == "Branco"] <- 0
-baseampla$d.raca[baseampla$raca == "Preto" ] <- 1
-baseampla$d.raca[baseampla$raca == "Pardo" ] <- 1
-baseampla$d.raca[baseampla$raca == "Amarelo" ] <- 1
-baseampla$d.raca[baseampla$raca == "Ind�?gena" ] <- 1
+baseampla$d.raca[baseampla$raca == "Branco"] <- 1
+baseampla$d.raca[baseampla$raca == "Preto" ] <- -0
+baseampla$d.raca[baseampla$raca == "Pardo" ] <- 0
+baseampla$d.raca[baseampla$raca == "Amarelo" ] <- 0
+baseampla$d.raca[baseampla$raca == "Ind�?gena" ] <- 0
 
 baseampla$d.raca <- as.numeric(baseampla$d.raca)
 
 # categorias de niveis para escolaridade (ensino sup, PG e medio = 1, 0 do contrário)
 baseampla$d.escolaridade[baseampla$escolaridade == "Ensino Superior"] <- 1
 baseampla$d.escolaridade[baseampla$escolaridade == "Pós-Graduação" ] <- 1
-baseampla$d.escolaridade[baseampla$escolaridade == "Médio" ] <- 1
+baseampla$d.escolaridade[baseampla$escolaridade == "Médio" ] <- 0
 baseampla$d.escolaridade[baseampla$escolaridade == "Ensino Fundamental" ] <- 0
 baseampla$d.escolaridade[baseampla$escolaridade == "Ensino Básico" ] <- 0
 
@@ -147,10 +148,10 @@ baseampla$gasto_equip_defensivo <- baseampla$gasto_equip_defensiv
 
 #Reduzindo dataframe para apenas variaveis de interesse
 
-baseampla_red <- subset(baseampla, select = c("gasto_equip_defensivo", "equip_defensiv", "idoso", "morte_cov", "idade", "contat_cov", "result_teste_1", "teste_cov", "pgt_plano","data_plano", "plano", "filho_dep", "estcivil", "d.escolaridade", "d.raca","raca", "sexo", "renda", "rendafam", "qtd_filho_dep","confirmed", "deaths", "confirmed_per_100k_inhabitants"))
+baseampla_red <- subset(baseampla, select = c("gasto_equip_defensivo", "raca", "escolaridade", "equip_defensiv", "idoso", "morte_cov", "idade", "contat_cov", "result_teste_1", "teste_cov", "pgt_plano","data_plano", "plano", "filho_dep", "estcivil", "d.escolaridade", "d.raca","raca", "sexo", "renda", "rendafam", "qtd_filho_dep","confirmed", "deaths", "confirmed_per_100k_inhabitants"))
 
 # Salvando dataframe com apenas variaveis de interesse em formato STATA
-# write.dta(baseampla_red, "covid_full.dta")
+write.dta(baseampla_red, "covid_full.dta")
 
 
 # Tratando Missing Values 
@@ -185,7 +186,7 @@ pbox(baseampla_red, pos = 19)
 ## Como temos um numero grande missing values, optei por fazer a imputacao de dados seguindo o metodo PMM
 
 ## by default it does 5 imputations for all missing values
-imp1 <- mice(baseampla_red, m = 5)
+imp1 <- mice(baseampla_red, m = 5) # imputacao multipla
 
 # he output states that, as we requested, 
 # 5 imputed datasets were created. Our two variables with missing values were imputed using "pmm"
@@ -194,7 +195,7 @@ imp1 <- mice(baseampla_red, m = 5)
 
 # Imputation Diagnostic Checks
 # The first three observation were missing information for equip_defensiv.
-# imp1$imp$contat_cov
+imp1$imp$contat_cov
 
 # Combining imp_dataset with observed data set
 imp_tot2 <- complete(imp1, "long", inc = TRUE)
@@ -211,7 +212,7 @@ stripplot(contat_cov ~ .imp, data = imp_tot2, jit = TRUE, col = col, xlab = "imp
 # Regression with imputed datasets
 
 ## linear regression for each imputed data set - 5 regression are run
-fitm <- with(data = imp1, lm(equip_defensiv ~ morte_cov + contat_cov))
+fitm <- with(data = imp1, lm(gasto_equip_defensivo ~ morte_cov + contat_cov))
 summary(fitm)
 
 # R will estimate our regression model separately for each imputed dataset, 1 though 5. We then need to summarize or pool those estimates to get one overall set of parameter estimates.
@@ -225,8 +226,8 @@ summary(pool(fitm))
 # Dataframe after imputation
 
 # Renomeando base imputada para base_imp
-base_imp <- subset(imp_tot2, select = c("gasto_equip_defensivo", "equip_defensiv", "idoso", "morte_cov", "idade","contat_cov", "result_teste_1", "teste_cov", "pgt_plano","data_plano", "plano", "filho_dep", "estcivil", "d.escolaridade","d.raca","raca", "sexo", "renda", "rendafam",   "qtd_filho_dep","confirmed", "deaths", "confirmed_per_100k_inhabitants"))
+base_imp <- subset(imp_tot2, select = c("gasto_equip_defensivo", "equip_defensiv", "idoso", "morte_cov", "idade","contat_cov", "result_teste_1", "teste_cov", "pgt_plano","data_plano", "plano", "filho_dep", "estcivil","escolaridade", "d.escolaridade","d.raca","raca", "sexo", "renda", "rendafam",   "qtd_filho_dep","confirmed", "deaths", "confirmed_per_100k_inhabitants"))
 
 # Trabalharei com essa base
-# write.dta(base_imp, "covid_basedados_imputado.dta")
+write.dta(base_imp, "covid_basedados_imputado.dta")
 
